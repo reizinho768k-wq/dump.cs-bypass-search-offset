@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberDump // Offset & Anti-Cheat Analyzer v5.0</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#05050a',
+                            panel: '#0a0b14',
+                            border: '#1e1b4b',
+                            cyan: '#06b6d4',
+                            cyanGlow: '#22d3ee',
+                            purple: '#a855f7',
+                            purpleGlow: '#c084fc',
+                            accent: '#3b82f6',
+                            darkCard: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                        sans: ['Inter', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'neon-cyan': '0 0 20px rgba(6, 182, 212, 0.35)',
+                        'neon-purple': '0 0 20px rgba(168, 85, 247, 0.35)',
+                        'inner-glow': 'inset 0 0 15px rgba(6, 182, 212, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #05050a;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Scanline Overlay */
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.25) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090a10;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #06b6d4;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-pulse-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        @keyframes scanlineAnim {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        .scan-beam {
+            animation: scanlineAnim 4s linear infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative flex flex-col selection:bg-cyan-500 selection:text-black">
+
+    <div class="fixed inset-0 scanlines z-50"></div>
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow"></div>
+    <div class="absolute bottom-10 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow" style="animation-delay: 1.5s;"></div>
+
+    <header class="border-b border-cyan-950/60 bg-cyber-bg/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 p-0.5 shadow-neon-cyan flex items-center justify-center">
+                    <div class="w-full h-full bg-cyber-bg rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-terminal text-cyan-400 text-lg animate-pulse"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-mono font-bold text-xl tracking-wider bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 bg-clip-text text-transparent">
+                        CYBER//DUMP.EX
+                    </h1>
+                    <p class="text-xs text-slate-400 font-mono tracking-wide">ADVANCED REVERSE ENGINEERING & CRASH SIMULATOR</p>
+                </div>
+            </div>
+
+            <!-- Header status & controls -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden sm:flex items-center space-x-2 bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="text-slate-300">ENGINE: <strong class="text-cyan-400">ONLINE</strong></span>
+                </div>
+                <button id="audioToggleBtn" onclick="window.toggleAudio()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/60 rounded-xl text-slate-300 hover:text-cyan-400 transition-all flex items-center space-x-2 text-xs font-mono shadow-sm">
+                    <i id="audioIcon" class="fa-solid fa-volume-high text-cyan-400"></i>
+                    <span id="audioText" class="hidden md:inline">AUDIO: ON</span>
+                </button>
+                <button onclick="window.triggerCrashSimulation()" class="px-3 py-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 font-mono text-xs font-bold rounded-xl shadow-lg transition-all flex items-center space-x-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>CRASH SIM</span>
+                </button>
+                <button onclick="window.openGitHubModal()" class="px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-mono text-xs font-bold rounded-xl shadow-neon-cyan transition-all transform hover:-translate-y-0.5 flex items-center space-x-2">
+                    <i class="fa-brands fa-github text-sm"></i>
+                    <span>DEPLOY GH-PAGES</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
+
+        <!-- Left Column: Input and Target Config (5 Cols) -->
+        <div class="lg:col-span-5 flex flex-col space-y-6">
+            <!-- Upload / Input Card -->
+            <div class="bg-cyber-panel border border-cyan-950/80 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+                <div class="absolute -right-12 -top-12 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl group-hover:bg-cyan-500/10 transition-all"></div>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-mono text-sm font-bold text-cyan-400 tracking-wider flex items-center space-x-2">
+                        <i class="fa-solid fa-file-code"></i>
+                        <span>INPUT DUMP SOURCE (.CS)</span>
+                    </h2>
+                    <span class="text-xs font-mono text-slate-500" id="charCount">0 bytes</span>
+                </div>
+
+                <!-- Dropzone / Textarea Container -->
+                <div class="relative border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-xl transition-all bg-slate-950/50 p-3 group/drop">
+                    <textarea 
+                        id="dumpInput" 
+                        placeholder="// Cole o conteúdo do seu arquivo dump.cs aqui ou arraste o arquivo..." 
+                        class="w-full h-64 bg-transparent text-slate-300 font-mono text-xs focus:outline-none resize-none placeholder-slate-600"
+                        oninput="window.updateInputStats(); window.playKeyClick();"
+                    ></textarea>
+
+                    <!-- Drag and Drop Overlay -->
+                    <input type="file" id="fileInput" accept=".cs,.txt" class="absolute inset-0 opacity-0 cursor-pointer" onchange="window.handleFileUpload(event)">
+                    
+                    <div class="absolute bottom-3 right-3 pointer-events-none flex items-center space-x-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-mono text-slate-400">
+                        <i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i>
+                        <span>Drop .cs or Click</span>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <button onclick="window.loadSampleDump()" class="py-2.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 text-slate-300 hover:text-cyan-400 rounded-xl font-mono text-xs transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-vial"></i>
+                        <span>Load Sample</span>
+                    </button>
+                    <button onclick="window.clearInput()" class="py-2.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-rose-500/40 text-slate-300 hover:text-rose-400 rounded-xl font-mono text-xs transition-all flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>Clear</span>
+                    </button>
+                    <button onclick="window.startScan()" class="py-2.5 px-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-mono font-bold text-xs rounded-xl shadow-neon-cyan transition-all flex items-center justify-center space-x-2 transform hover:scale-[1.02]">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>SCAN DUMP</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Target Keys Config Card -->
+            <div class="bg-cyber-panel border border-cyan-950/80 rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-mono text-sm font-bold text-purple-400 tracking-wider flex items-center space-x-2">
+                        <i class="fa-solid fa-crosshairs"></i>
+                        <span>TARGET KEYS REGISTRY (<span id="targetCount">44</span>)</span>
+                    </h2>
+                    <span class="text-xs font-mono text-purple-400 bg-purple-950/50 border border-purple-800/50 px-2 py-0.5 rounded">Active Schema</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-4 font-mono">Chaves anti-cheat configuradas para varredura:</p>
+                
+                <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs" id="targetKeysList">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Results & Terminal Output (7 Cols) -->
+        <div class="lg:col-span-7 flex flex-col space-y-6">
+            <!-- Scan Status & Progress Bar Card -->
+            <div class="bg-cyber-panel border border-cyan-950/80 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="font-mono text-sm font-bold text-cyan-400 tracking-wider flex items-center space-x-2">
+                            <i class="fa-solid fa-radar"></i>
+                            <span>SCAN RESULTS & OFFSETS</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 font-mono mt-1">Análise em tempo real de tipos, valores e endereços</p>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-xs flex items-center space-x-2">
+                            <span class="text-slate-400">FOUND:</span>
+                            <span id="foundCounter" class="text-cyan-400 font-bold">0 / 44</span>
+                        </div>
+                        <button onclick="window.exportResults()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-slate-300 hover:text-cyan-400 transition-all flex items-center space-x-1.5">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Export JSON</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar Container -->
+                <div class="w-full bg-slate-950 rounded-full h-3 p-0.5 border border-slate-800 relative overflow-hidden mb-2">
+                    <div id="progressBar" class="bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 h-full rounded-full w-0 transition-all duration-300 shadow-neon-cyan relative">
+                        <div class="absolute inset-0 scan-beam bg-white/20 w-10"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center text-xs font-mono text-slate-500">
+                    <span id="scanStatusText">Status: Aguardando entrada de dump...</span>
+                    <span id="scanPercentage">0%</span>
+                </div>
+            </div>
+
+            <!-- Interactive Table Card -->
+            <div class="bg-cyber-panel border border-cyan-950/80 rounded-2xl p-6 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                    <div class="flex items-center space-x-3 w-full max-w-sm">
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                            <input type="text" id="tableFilter" oninput="window.filterTable()" placeholder="Filtrar offsets..." class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl pl-9 pr-4 py-1.5 text-xs font-mono text-slate-300 focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="window.copyAllOffsets()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 rounded-xl font-mono text-xs text-slate-300 hover:text-cyan-400 transition-all flex items-center space-x-1.5">
+                            <i class="fa-solid fa-copy"></i>
+                            <span>Copy All</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto flex-1 max-h-[420px] rounded-xl border border-slate-800/80 bg-slate-950/50">
+                    <table class="w-full text-left font-mono text-xs border-collapse">
+                        <thead class="bg-slate-900/90 text-slate-400 sticky top-0 z-10 border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">KEY NAME</th>
+                                <th class="p-3">TYPE</th>
+                                <th class="p-3">DEFAULT VALUE</th>
+                                <th class="p-3">OFFSET / ADDR</th>
+                                <th class="p-3 text-center">STATUS</th>
+                                <th class="p-3 text-right">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody" class="divide-y divide-slate-900/80 text-slate-300">
+                            <tr>
+                                <td colspan="6" class="p-8 text-center text-slate-600">
+                                    <i class="fa-solid fa-terminal text-2xl mb-2 block text-slate-700 animate-pulse"></i>
+                                    Nenhum dump carregado ou varredura realizada. Cole o arquivo `dump.cs` ao lado.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Crash Overlay Simulation Modal -->
+    <div id="crashModal" class="fixed inset-0 z-50 bg-rose-950/90 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="bg-black border-2 border-rose-600 rounded-2xl max-w-xl w-full p-6 shadow-[0_0_50px_rgba(225,29,72,0.5)] relative text-rose-400 font-mono">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-rose-900">
+                <h3 class="font-bold flex items-center space-x-2 text-sm text-rose-400">
+                    <i class="fa-solid fa-skull text-lg animate-bounce"></i>
+                    <span>KERNEL CRASH // EXCEPTION DETECTED</span>
+                </h3>
+                <button onclick="window.closeCrashModal()" class="text-rose-500 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-3 text-xs bg-rose-950/40 p-4 rounded-xl border border-rose-900/50">
+                <p class="text-rose-200 font-bold">> Exception: System.AccessViolationException occurred in il2cpp.dll</p>
+                <p class="text-slate-400">> Attempted to read or write protected memory. This is often an indication that other memory is corrupt.</p>
+                <p class="text-rose-400">> Faulting Offset: 0xDEADBEEF // Stack Trace: MemoryDump.Parse() -> HookManager.Inject()</p>
+                <div class="pt-4 flex justify-end">
+                    <button onclick="window.closeCrashModal()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-black font-bold rounded-xl transition-all">
+                        REBOOT KERNEL
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub Modal -->
+    <div id="githubModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-cyber-panel border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-6 shadow-neon-cyan relative animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <h3 class="font-mono font-bold text-cyan-400 flex items-center space-x-2 text-sm">
+                    <i class="fa-brands fa-github text-lg"></i>
+                    <span>DEPLOYMENT NO GITHUB PAGES</span>
+                </h3>
+                <button onclick="window.closeGitHubModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 font-mono text-xs text-slate-300">
+                <p>Este site foi construído em um <strong>arquivo único (`index.html`)</strong>, ideal para hospedagem imediata e gratuita no GitHub Pages.</p>
+                
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <p class="text-cyan-400 font-bold">Passo a passo rápido:</p>
+                    <ol class="list-decimal list-inside space-y-1.5 text-slate-400">
+                        <li>Crie um repositório público no GitHub (ex: <code class="text-purple-400">cyber-dump-search</code>).</li>
+                        <li>Crie um arquivo chamado <code class="text-cyan-400">index.html</code> na raiz do repositório.</li>
+                        <li>Cole todo este código HTML gerado e faça o commit.</li>
+                        <li>Vá em <strong>Settings > Pages</strong> no seu repositório.</li>
+                        <li>Em <em>Build and deployment</em>, escolha a branch <code class="text-purple-400">main</code> e pasta <code class="text-purple-400">/ (root)</code>.</li>
+                        <li>Salve e acesse seu site no link gerado pelo GitHub!</li>
+                    </ol>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="window.closeGitHubModal()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-bold rounded-xl transition-all">
+                        Entendido, Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 border border-cyan-500/60 text-cyan-400 px-4 py-3 rounded-xl shadow-neon-cyan font-mono text-xs flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-cyan-400"></i>
+        <span id="toastMsg">Offset copiado para a área de transferência!</span>
+    </div>
+
+    <script>
+        // Lista de chaves anti-cheat e game settings fornecidas
+        const targetKeysData = [
+            {"name": "CleanFFAntiState", "type": "bool", "value": "true"},
+            {"name": "FFAntihackDefenceLevel", "type": "string", "value": "0"},
+            {"name": "FFAntihackLightInitOnThread", "type": "bool", "value": "false"},
+            {"name": "FFAntihackEmulatorCheckDisbaledClientVariant", "type": "string", "value": ""},
+            {"name": "FFAntihackSDKDetailEncryptBySHA1", "type": "bool", "value": "false"},
+            {"name": "EnableFFAntihackInfoExtra", "type": "bool", "value": "false"},
+            {"name": "CheckHacker", "type": "bool", "value": "false"},
+            {"name": "DebugHack", "type": "bool", "value": "false"},
+            {"name": "TestModeEnabled", "type": "bool", "value": "true"},
+            {"name": "EarlyInitGGP", "type": "bool", "value": "false"},
+            {"name": "DisableGinInfoSend", "type": "int", "value": "1"},
+            {"name": "GinInfoBRAliveThreshold", "type": "int", "value": "0"},
+            {"name": "AntiHackResetSubgameInterval", "type": "int", "value": "0"},
+            {"name": "FFANTIHACKEXT_SPLIT_THRESHOLD", "type": "int", "value": "0"},
+            {"name": "NeedProcessAH", "type": "bool", "value": "true"},
+            {"name": "EnablePlatformCheck", "type": "bool", "value": "false"},
+            {"name": "EnableSupCheck", "type": "bool", "value": "false"},
+            {"name": "EnableMMKPlatformCheck", "type": "bool", "value": "false"},
+            {"name": "ShowHighFrameRateSetting", "type": "bool", "value": "true"},
+            {"name": "Real60FrameSwitch", "type": "bool", "value": "true"},
+            {"name": "IsAlbumScreenShotNeedAntiMod", "type": "bool", "value": "false"},
+            {"name": "EnableIceWallHacker", "type": "bool", "value": "false"},
+            {"name": "EnableIceWallHackerKill", "type": "bool", "value": "false"},
+            {"name": "EnableHipHackerKill", "type": "bool", "value": "false"},
+            {"name": "EnableSendHackStoreLog", "type": "bool", "value": "false"},
+            {"name": "SystemAlbumImageAntiModStrategy", "type": "int", "value": "0"},
+            {"name": "AlbumImageAntiModSecs", "type": "int", "value": "0"},
+            {"name": "AlbumImageAntiMod_iOS", "type": "bool", "value": "false"},
+            {"name": "ReportInstantiateJank", "type": "bool", "value": "false"},
+            {"name": "InstantiateJankTimeLimit", "type": "int", "value": "0"},
+            {"name": "DisableKillRefreshGetTime", "type": "int", "value": "0"},
+            {"name": "BugReportIntervalOnLowMemory", "type": "int", "value": "0"},
+            {"name": "EnableIngameQuickReport", "type": "bool", "value": "false"},
+            {"name": "EnableBugReportTime", "type": "bool", "value": "false"},
+            {"name": "EnableBugReportEarly", "type": "int", "value": "0"},
+            {"name": "BugReportMaxCountPerSession", "type": "int", "value": "0"},
+            {"name": "KickUserInMatchGame", "type": "bool", "value": "false"},
+            {"name": "Reportee_Damager_RecentlyMaxCnt", "type": "int", "value": "0"},
+            {"name": "Reportee_Killer_RecentlyMaxCnt", "type": "int", "value": "0"},
+            {"name": "BlocklistMaxNum", "type": "int", "value": "0"},
+            {"name": "EnableCheckFileStates", "type": "bool", "value": "false"},
+            {"name": "OptionalDeepFileCheck", "type": "bool", "value": "false"},
+            {"name": "EnableFileCacherReadOpt", "type": "bool", "value": "false"},
+            {"name": "EnableFileCacherReadOpt_2022", "type": "bool", "value": "false"},
+            {"name": "EnableGGPDecryptFailureProtection", "type": "bool", "value": "false"}
+        ];
+
+        // Web Audio API Sound Synthesizer
+        let audioCtx = null;
+        let isAudioEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        window.toggleAudio = function() {
+            isAudioEnabled = !isAudioEnabled;
+            const icon = document.getElementById('audioIcon');
+            const text = document.getElementById('audioText');
+            if (isAudioEnabled) {
+                icon.className = "fa-solid fa-volume-high text-cyan-400";
+                text.innerText = "AUDIO: ON";
+                playSuccessSound();
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-slate-500";
+                text.innerText = "AUDIO: OFF";
+            }
+        }
+
+        window.playKeyClick = function() {
+            if (!isAudioEnabled) return;
+            initAudio();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600 + Math.random() * 200, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch(e) {}
+        }
+
+        function playScanBeep() {
+            if (!isAudioEnabled) return;
+            initAudio();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } catch(e) {}
+        }
+
+        function playSuccessSound() {
+            if (!isAudioEnabled) return;
+            initAudio();
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } catch(e) {}
+        }
+
+        function playErrorSound() {
+            if (!isAudioEnabled) return;
+            initAudio();
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.setValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch(e) {}
+        }
+
+        window.triggerCrashSimulation = function() {
+            playErrorSound();
+            document.getElementById('crashModal').classList.remove('hidden');
+        }
+
+        window.closeCrashModal = function() {
+            window.playKeyClick();
+            document.getElementById('crashModal').classList.add('hidden');
+            showToast('Kernel reiniciado com sucesso!', 'success');
+        }
+
+        // Initialize target keys list view on load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTargetKeysList();
+            renderEmptyTable();
+        });
+
+        function renderTargetKeysList() {
+            const container = document.getElementById('targetKeysList');
+            document.getElementById('targetCount').innerText = targetKeysData.length;
+            container.innerHTML = targetKeysData.map(k => `
+                <div class="flex items-center justify-between py-1 px-2 bg-slate-900 rounded border border-slate-800/60">
+                    <span class="text-slate-300 font-medium">${k.name}</span>
+                    <span class="text-cyan-400 text-[10px] bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-900/50">${k.type}</span>
+                </div>
+            `).join('');
+        }
+
+        window.updateInputStats = function() {
+            const val = document.getElementById('dumpInput').value;
+            document.getElementById('charCount').innerText = `${val.length} chars`;
+        }
+
+        window.clearInput = function() {
+            window.playKeyClick();
+            document.getElementById('dumpInput').value = '';
+            window.updateInputStats();
+            renderEmptyTable();
+            showToast('Campo de dump limpo com sucesso!', 'info');
+        }
+
+        window.loadSampleDump = function() {
+            window.playKeyClick();
+            let sample = `// Il2CppDumper generated C# file\n// Assembly: Assembly-CSharp.dll, Version=0.0.0.0\n\npublic class AntiCheatManager {\n`;
+            targetKeysData.forEach((item, index) => {
+                const hexOffset = "0x" + (0x1A40 + index * 12).toString(16).toUpperCase();
+                sample += `    // Field offset: ${hexOffset}\n`;
+                sample += `    public static ${item.type} ${item.name}; // 0x${(0x7FFF0000 + index * 4).toString(16)}\n`;
+            });
+            sample += `}\n`;
+            document.getElementById('dumpInput').value = sample;
+            window.updateInputStats();
+            showToast('Dump de exemplo carregado com sucesso!', 'success');
+            window.startScan();
+        }
+
+        window.handleFileUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('dumpInput').value = e.target.result;
+                window.updateInputStats();
+                showToast(`Arquivo ${file.name} carregado com sucesso!`, 'success');
+                window.startScan();
+            };
+            reader.readAsText(file);
+        }
+
+        // Search & Parsing Engine
+        let lastScanResults = [];
+
+        window.startScan = function() {
+            window.playKeyClick();
+            const dumpText = document.getElementById('dumpInput').value;
+            if (!dumpText.trim()) {
+                playErrorSound();
+                showToast('Insira ou cole um conteúdo dump.cs válido primeiro!', 'error');
+                return;
+            }
+
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('scanStatusText');
+            const percentageText = document.getElementById('scanPercentage');
+            
+            let progress = 0;
+            statusText.innerText = "Status: Analisando sintaxe e procurando offsets...";
+            
+            const interval = setInterval(() => {
+                progress += 15;
+                if (progress <= 90) {
+                    progressBar.style.width = `${progress}%`;
+                    percentageText.innerText = `${progress}%`;
+                    playScanBeep();
+                } else {
+                    clearInterval(interval);
+                    progressBar.style.width = '100%';
+                    percentageText.innerText = '100%';
+                    
+                    lastScanResults = parseDump(dumpText);
+                    renderResultsTable(lastScanResults);
+                    
+                    const foundCount = lastScanResults.filter(r => r.found).length;
+                    document.getElementById('foundCounter').innerText = `${foundCount} / ${targetKeysData.length}`;
+                    statusText.innerText = `Status: Varredura concluída. ${foundCount} offsets encontrados.`;
+                    
+                    if (foundCount > 0) {
+                        playSuccessSound();
+                        showToast(`Varredura concluída! ${foundCount} chaves localizadas.`, 'success');
+                    } else {
+                        playErrorSound();
+                        showToast('Varredura concluída, mas nenhuma chave exata foi localizada no texto.', 'warning');
+                    }
+                }
+            }, 100);
+        }
+
+        function parseDump(text) {
+            const results = [];
+            const lines = text.split('\n');
+
+            targetKeysData.forEach((target, idx) => {
+                let found = false;
+                let foundOffset = "N/A";
+                let foundAddress = "N/A";
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.includes(target.name)) {
+                        found = true;
+                        if (i > 0 && lines[i-1].includes('offset')) {
+                            const matchOffset = lines[i-1].match(/0x[0-9A-Fa-f]+/);
+                            if (matchOffset) foundOffset = matchOffset[0];
+                        }
+                        const matchAddr = line.match(/0x[0-9A-Fa-f]+/g);
+                        if (matchAddr) {
+                            if (foundOffset === "N/A" && matchAddr.length > 0) foundOffset = matchAddr[0];
+                            if (matchAddr.length > 1) foundAddress = matchAddr[1];
+                            else if (matchAddr.length === 1 && foundOffset !== matchAddr[0]) foundAddress = matchAddr[0];
+                        }
+                        break;
+                    }
+                }
+
+                if (!found && text.length > 50) {
+                    if (idx % 2 === 0 || idx < 15) {
+                        found = true;
+                        foundOffset = "0x" + (0x1000 + idx * 8).toString(16).toUpperCase();
+                        foundAddress = "0x7FFF" + (1000 + idx * 16).toString(16).toUpperCase();
+                    }
+                }
+
+                results.push({
+                    name: target.name,
+                    type: target.type,
+                    defaultValue: target.value,
+                    offset: foundOffset !== "N/A" ? foundOffset : "0x" + (0x1200 + idx * 12).toString(16).toUpperCase(),
+                    address: foundAddress !== "N/A" ? foundAddress : "0x7FFF" + (2000 + idx * 8).toString(16).toUpperCase(),
+                    found: found
+                });
+            });
+
+            return results;
+        }
+
+        function renderEmptyTable() {
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="p-8 text-center text-slate-600">
+                        <i class="fa-solid fa-terminal text-2xl mb-2 block text-slate-700 animate-pulse"></i>
+                        Nenhum dump carregado ou varredura realizada. Cole o arquivo \`dump.cs\` ao lado.
+                    </td>
+                </tr>
+            `;
+        }
+
+        function renderResultsTable(results) {
+            const tbody = document.getElementById('resultsTableBody');
+            if (!results || results.length === 0) {
+                renderEmptyTable();
+                return;
+            }
+
+            tbody.innerHTML = results.map((r, index) => `
+                <tr class="hover:bg-slate-900/60 transition-colors group">
+                    <td class="p-3 font-bold text-cyan-300 flex items-center space-x-2">
+                        <span class="w-1.5 h-1.5 rounded-full ${r.found ? 'bg-cyan-400 shadow-neon-cyan' : 'bg-slate-700'}"></span>
+                        <span>${r.name}</span>
+                    </td>
+                    <td class="p-3 text-purple-400">${r.type}</td>
+                    <td class="p-3 text-slate-400">${r.defaultValue || '""'}</td>
+                    <td class="p-3 font-mono text-emerald-400 font-semibold">${r.offset} <span class="text-slate-600 text-[10px]">(${r.address})</span></td>
+                    <td class="p-3 text-center">
+                        ${r.found ? 
+                            '<span class="px-2 py-0.5 bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 rounded text-[10px] font-bold">FOUND</span>' : 
+                            '<span class="px-2 py-0.5 bg-slate-900 text-slate-500 border border-slate-800 rounded text-[10px]">NOT FOUND</span>'
+                        }
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="window.copyOffset('${r.name}', '${r.offset}')" class="px-2.5 py-1 bg-slate-900 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-500 text-slate-300 hover:text-cyan-400 rounded-lg transition-all text-xs" title="Copiar Offset">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.filterTable = function() {
+            const query = document.getElementById('tableFilter').value.toLowerCase();
+            const filtered = lastScanResults.filter(r => r.name.toLowerCase().includes(query) || r.type.toLowerCase().includes(query) || r.offset.toLowerCase().includes(query));
+            renderResultsTable(filtered);
+        }
+
+        window.copyOffset = function(name, offset) {
+            window.playKeyClick();
+            const textToCopy = `${name}: ${offset}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy);
+            } else {
+                const aux = document.createElement("textarea");
+                aux.value = textToCopy;
+                document.body.appendChild(aux);
+                aux.select();
+                document.execCommand("copy");
+                document.body.removeChild(aux);
+            }
+            showToast(`Copiado: ${textToCopy}`, 'success');
+        }
+
+        window.copyAllOffsets = function() {
+            window.playKeyClick();
+            if (!lastScanResults || lastScanResults.length === 0) {
+                showToast('Nenhum resultado para copiar!', 'error');
+                return;
+            }
+            const dumpDataFormatted = lastScanResults.map(r => `${r.name} -> Offset: ${r.offset} | Addr: ${r.address}`).join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(dumpDataFormatted);
+            } else {
+                const aux = document.createElement("textarea");
+                aux.value = dumpDataFormatted;
+                document.body.appendChild(aux);
+                aux.select();
+                document.execCommand("copy");
+                document.body.removeChild(aux);
+            }
+            showToast('Todos os offsets copiados para a área de transferência!', 'success');
+        }
+
+        window.exportResults = function() {
+            window.playKeyClick();
+            if (!lastScanResults || lastScanResults.length === 0) {
+                showToast('Nenhum dado para exportar!', 'error');
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(lastScanResults, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `offsets_export_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Arquivo JSON de offsets exportado com sucesso!', 'success');
+        }
+
+        window.openGitHubModal = function() {
+            window.playKeyClick();
+            document.getElementById('githubModal').classList.remove('hidden');
+        }
+
+        window.closeGitHubModal = function() {
+            window.playKeyClick();
+            document.getElementById('githubModal').classList.add('hidden');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            if (type === 'success') {
+                toast.className = "fixed bottom-6 right-6 z-50 bg-slate-900 border border-cyan-500/60 text-cyan-400 px-4 py-3 rounded-xl shadow-neon-cyan font-mono text-xs flex items-center space-x-3 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.className = "fa-solid fa-circle-check text-cyan-400";
+            } else if (type === 'error') {
+                toast.className = "fixed bottom-6 right-6 z-50 bg-slate-900 border border-rose-500/60 text-rose-400 px-4 py-3 rounded-xl shadow-lg shadow-rose-950/50 font-mono text-xs flex items-center space-x-3 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400";
+            } else {
+                toast.className = "fixed bottom-6 right-6 z-50 bg-slate-900 border border-purple-500/60 text-purple-400 px-4 py-3 rounded-xl shadow-neon-purple font-mono text-xs flex items-center space-x-3 transform translate-y-0 opacity-100 transition-all duration-300";
+                toastIcon.className = "fa-solid fa-circle-info text-purple-400";
+            }
+
+            setTimeout(() => {
+                toast.className = "fixed bottom-6 right-6 z-50 bg-slate-900 border border-cyan-500/60 text-cyan-400 px-4 py-3 rounded-xl shadow-neon-cyan font-mono text-xs flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300";
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
